@@ -1,63 +1,113 @@
-document.addEventListener('DOMContentLoaded', function() {
-  const taskInput = document.getElementById('taskInput');
-  const addButton = document.getElementById('addButton');
-  const taskList = document.getElementById('taskList');
+document.addEventListener("DOMContentLoaded", function () {
+  let sessionDuration = 25; // Default session duration (in minutes)
+  let breakDuration = 5; // Default break duration (in minutes)
 
-  // Load tasks from local storage on page load
-  loadTasks();
+  let isSession = true;
+  let isRunning = false;
+  let timeRemaining = sessionDuration * 60;
+  let timerInterval;
 
-  addButton.addEventListener('click', addTask);
-  taskList.addEventListener('click', deleteTask);
+  function updateTimerDisplay() {
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    document.getElementById("clock").textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-  function addTask() {
-    const taskText = taskInput.value.trim();
-    if (taskText === '') return;
-
-    const taskItem = document.createElement('li');
-    taskItem.innerHTML = `
-      <span>${taskText}</span>
-      <button class="delete-button">Delete</button>
-    `;
-
-    taskList.appendChild(taskItem);
-    taskInput.value = '';
-
-    // Save tasks to local storage
-    saveTasks();
-  }
-
-  function deleteTask(event) {
-    if (event.target.classList.contains('delete-button')) {
-      const taskItem = event.target.parentElement;
-      taskList.removeChild(taskItem);
-
-      // Save tasks to local storage
-      saveTasks();
+    // Set the appropriate label based on the current state (session or break)
+    if (isSession) {
+      document.getElementById("timerLabel").textContent = "session";
+    } else {
+      document.getElementById("timerLabel").textContent = "break";
     }
   }
 
-  function saveTasks() {
-    const tasks = [];
-    const taskItems = taskList.querySelectorAll('li');
-
-    taskItems.forEach((taskItem) => {
-      tasks.push(taskItem.firstChild.textContent);
-    });
-
-    localStorage.setItem('tasks', JSON.stringify(tasks));
+  function startTimer() {
+    isRunning = true;
+    timerInterval = setInterval(function () {
+      if (timeRemaining > 0) {
+        timeRemaining--;
+        updateTimerDisplay();
+      } else {
+        clearInterval(timerInterval);
+        if (isSession) {
+          timeRemaining = breakDuration * 60;
+        } else {
+          timeRemaining = sessionDuration * 60;
+        }
+        isSession = !isSession;
+        updateTimerDisplay();
+        startTimer();
+      }
+    }, 1000);
   }
 
-  function loadTasks() {
-    const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-
-    tasks.forEach((taskText) => {
-      const taskItem = document.createElement('li');
-      taskItem.innerHTML = `
-        <span>${taskText}</span>
-        <button class="delete-button">Delete</button>
-      `;
-
-      taskList.appendChild(taskItem);
-    });
+  function pauseTimer() {
+    isRunning = false;
+    clearInterval(timerInterval);
   }
+
+  function resetTimer() {
+    isRunning = false;
+    clearInterval(timerInterval);
+    isSession = true;
+    timeRemaining = sessionDuration * 60;
+    updateTimerDisplay();
+  }
+
+  function adjustSessionLength(increment) {
+    sessionDuration += increment;
+    if (sessionDuration < 1) {
+      sessionDuration = 1; // Prevent setting session duration to 0 or negative values
+    }
+    if (isSession) {
+      timeRemaining = sessionDuration * 60;
+      updateTimerDisplay();
+    }
+    document.getElementById("cd").textContent = sessionDuration;
+  }
+
+  function adjustBreakLength(increment) {
+    breakDuration += increment;
+    if (breakDuration < 1) {
+      breakDuration = 1; // Prevent setting break duration to 0 or negative values
+    }
+    if (!isSession) {
+      timeRemaining = breakDuration * 60;
+      updateTimerDisplay();
+    }
+    document.getElementById("pauseLength").textContent = breakDuration;
+  }
+
+  document.getElementById("start").addEventListener("click", function () {
+    if (!isRunning) {
+      startTimer();
+    }
+  });
+
+  document.getElementById("pause").addEventListener("click", function () {
+    if (isRunning) {
+      pauseTimer();
+    }
+  });
+
+  document.getElementById("reset").addEventListener("click", function () {
+    resetTimer();
+  });
+
+  document.getElementById("cdUP").addEventListener("click", function () {
+    adjustSessionLength(1);
+  });
+
+  document.getElementById("cdDOWN").addEventListener("click", function () {
+    adjustSessionLength(-1);
+  });
+
+  document.getElementById("pauseUP").addEventListener("click", function () {
+    adjustBreakLength(1);
+  });
+
+  document.getElementById("pauseDOWN").addEventListener("click", function () {
+    adjustBreakLength(-1);
+  });
+
+  updateTimerDisplay();
 });
